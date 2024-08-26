@@ -1,25 +1,38 @@
-import logo from './logo.svg';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import Header from './components/Header';
+import CarList from './components/CarList';
+import RegisterPage from './components/RegisterPage.js';
+import RentalsPage from './components/RentalsPage';
+import ContactUs from './components/ContactUs.js';
 import './App.css';
 
-function App() {
+const App = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const userRole = JSON.parse(atob(token.split('.')[1])).role;
+      setIsAdmin(userRole === 'Admin');
+      setIsLoggedIn(true);
+    }
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <div>
+        <Header isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} setIsAdmin={setIsAdmin} />
+        <Routes>
+          <Route path="/" element={<CarList isAdmin={isAdmin} isLoggedIn={isLoggedIn} />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/rentals" element={<RentalsPage />} />
+          <Route path="/contact" element={<ContactUs />} />
+        </Routes>
+      </div>
+    </Router>
   );
-}
+};
 
 export default App;

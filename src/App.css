@@ -1,7 +1,17 @@
 .App {
   text-align: center;
 }
+body, html, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: url('tlo.jpg') no-repeat center center fixed;
+  background-size: cover;
+}
 
+.main-container {
+  background: transparent;
+}
 .App-logo {
   height: 40vmin;
   pointer-events: none;
