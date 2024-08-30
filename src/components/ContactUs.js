@@ -35,7 +35,7 @@ const ContactUs = () => {
       console.error('Błąd wysyłania wiadomości:', error.text);
     });
 
-    setFormData({ name: '', email: '', message: '' }); // Zresetuj formularz
+    setFormData({ name: '', email: '', message: '' }); 
   };
 
   return (

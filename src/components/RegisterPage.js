@@ -39,7 +39,7 @@ const RegisterPage = () => {
                 throw new Error('Błąd rejestracji, sprawdź dane i spróbuj ponownie.');
             }
 
-            // Jeśli rejestracja zakończyła się sukcesem, przekieruj na stronę główną
+           
             navigate('/');
         } catch (error) {
             setError(error.message);

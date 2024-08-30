@@ -37,7 +37,7 @@ const RentalsPage = () => {
 
       if (!response.ok) throw new Error('Błąd zwrotu auta');
 
-      fetchRentals(); // Odswieżenie listy wypożyczeń
+      fetchRentals(); 
     } catch (error) {
       console.error('Błąd:', error);
     }
@@ -67,15 +67,15 @@ const RentalsPage = () => {
 const styles = {
   button: {
     padding: '8px 16px',
-    fontSize: '16px', // Ustawienie tej samej wielkości czcionki dla wszystkich przycisków
+    fontSize: '16px', 
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    width: '150px', // Ustawienie tej samej szerokości dla wszystkich przycisków
-    height: '40px', // Ustawienie tej samej wysokości dla wszystkich przycisków
+    width: '150px', 
+    height: '40px', 
   },
   rentButton: {
-    backgroundColor: '#007bff', // Kolor dla przycisku "Wypożycz"
+    backgroundColor: '#007bff', 
     color: '#fff',
   },
 

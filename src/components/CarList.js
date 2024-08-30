@@ -78,7 +78,7 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
   const handleAddCar = async () => {
     if (!isAdmin) return;
 
-    const formData = new FormData(); // Tworzymy instancję FormData
+    const formData = new FormData(); 
     formData.append('marka', newCar.marka);
     formData.append('model', newCar.model);
     formData.append('year', newCar.year);
@@ -86,7 +86,7 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
     formData.append('enginesize', newCar.enginesize.replace('.', ','));
     formData.append('price', newCar.price);
     if (newCar.ImagePath) {
-      formData.append('ImagePath', newCar.ImagePath); // Dodajemy plik obrazu do FormData
+      formData.append('ImagePath', newCar.ImagePath); 
     }
 
     try {
