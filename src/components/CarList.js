@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import RentCarForm from './RentCarForm';
 
-
-
-const CarList = ({ isAdmin, isLoggedIn }) => {
+const CarList = ({ isAdmin, isLoggedIn, balance , setBalance }) => {
   const [cars, setCars] = useState([]);
+  const [errorMessage, setErrorMessage] = useState('');
   const [filters, setFilters] = useState({
     marka: '',
   model: '',
@@ -59,7 +59,15 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
 
   useEffect(() => {
     fetchCars();
+    
   }, []);
+
+  useEffect(() => {
+    fetchBalance();
+    
+  }, [balance]);
+
+
 
   const handleFilterSubmit = (e) => {
     e.preventDefault();
@@ -162,24 +170,32 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
     }
   };
 
-  const handleRentCar = async (carId) => {
+  const fetchBalance = async (userId, token) => {
     try {
-      const token = localStorage.getItem('token');
-      const userId = localStorage.getItem('userId');
-
-      const rentalsResponse = await fetch(`https://localhost:7175/api/rentals/user/${userId}`, {
+      const balanceResponse = await fetch(`https://localhost:7175/api/Account/${userId}/balance`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (!rentalsResponse.ok) throw new Error('Błąd pobierania danych wypożyczeń');
-
-      const rentalsData = await rentalsResponse.json();
-      if (rentalsData.length >= 2) {
-        alert('Nie możesz wypożyczyć więcej niż dwóch samochodów.');
-        return;
+      if (balanceResponse.ok) {
+        const balanceData = await balanceResponse.json();
+        console.log(balanceData);
+        setBalance(balanceData.balance); // Uaktualnienie stanu balance
+      } else {
+        console.error('Błąd przy pobieraniu salda:', balanceResponse.statusText);
       }
+    } catch (error) {
+      console.error('Wystąpił błąd przy pobieraniu salda:', error);
+    }
+  };
+
+  const handleRentCar = async (carId, { startDate, endDate }) => {
+    setErrorMessage(''); // Resetowanie błędów przed każdą próbą wypożyczenia
+    try {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
 
       const response = await fetch('https://localhost:7175/api/rentals/rent', {
         method: 'POST',
@@ -187,17 +203,24 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ carId, userId }),
+        body: JSON.stringify({ carId, userId, startDate, endDate }),
       });
 
-      if (!response.ok) throw new Error('Błąd wypożyczania auta');
+      if (!response.ok) {
+        const errorMessage = await response.text()
+        
+        setErrorMessage(errorMessage || 'Wystąpił błąd podczas wypożyczania samochodu.');
+        return;
+      }
+      fetchCars(); // Aktualizacja listy aut po wypożyczeniu
+      await fetchBalance(userId, token); // Pobranie aktualnego salda użytkownika
 
-      fetchCars();
     } catch (error) {
       console.error('Błąd:', error);
-      alert('Wystąpił błąd podczas wypożyczania samochodu. Sprawdź konsolę, aby uzyskać więcej informacji.');
+      setErrorMessage('Wystąpił błąd podczas wypożyczania samochodu.');
     }
   };
+
 
   return (
     <div style={styles.container}>
@@ -392,6 +415,7 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
 
       {loading ? (
         <p>Ładowanie...</p>
+        
       ) : cars.length === 0 ? (
         <p>Brak dostępnych aut.</p>
       ) : (
@@ -402,20 +426,23 @@ const CarList = ({ isAdmin, isLoggedIn }) => {
               <h3>{car.marka} {car.model} Rok: {car.year}</h3>
               <p>Rok: {car.year}</p> <p>Skrzynia: {car.transmission} Pojemność silnika: {car.enginesize}L Cena: {car.price} PLN</p>
             
-              {car.isRented && isLoggedIn && <p style={styles.rentedText}>Auto wypożyczone</p>} {/* Tekst "Auto wypożyczone" */}
+            
               {isAdmin && (
                 <>
                   <button onClick={() => handleEditCar(car)} style={{ ...styles.button, ...styles.editButton }}>Edytuj</button>
                   <button onClick={() => handleDeleteCar(car.id)} style={{ ...styles.button, ...styles.deleteButton }}>Usuń</button>
                 </>
               )}
-              {isLoggedIn && !car.isRented && (
-                <button onClick={() => handleRentCar(car.id)} style={{ ...styles.button, ...styles.rentButton }}>Wypożycz</button>
+              {isLoggedIn &&  (
+                 <RentCarForm onSubmit={(dates) => handleRentCar(car.id, dates)} />
               )}
             </li>
           ))}
         </ul>
       )}
+{/* Wyświetlanie komunikatu o błędzie */}
+{errorMessage && <p style={styles.errorMessage}>{errorMessage}</p>}
+
     </div>
   );
 };
@@ -478,10 +505,23 @@ const styles = {
     fontWeight: 'bold',
     marginTop: '10px',
   },
+  errorMessage: {
+    color: '#ff0000', /* Czerwony kolor tekstu */
+    border: '1px solid #ff0000', /* Czerwona ramka */
+    backgroundColor: '#ffe6e6', /* Jasnoróżowe tło */
+    padding: '10px',
+    margin: '20px auto', /* Automatyczne marginesy do centrowania */
+    textAlign: 'center', /* Wycentrowany tekst */
+    maxWidth: '400px', /* Maksymalna szerokość komunikatu */
+    borderRadius: '5px', /* Zaokrąglone rogi ramki */
+  },
+
+
   container: {
     padding: '20px',
     background: 'transparent',
   },
+  
 };
 
 export default CarList;

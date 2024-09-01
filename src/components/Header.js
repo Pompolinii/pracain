@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { useNavigate, Link , useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 
-const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
+const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin, balance , setBalance }) => { // Dodano prop 'balance'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginMessage, setLoginMessage] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
+  
 
   const parseJwt = (token) => {
     try {
-      const base64Url = token.split('.')[1]; 
+      const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
         atob(base64)
@@ -18,14 +19,14 @@ const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
           .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
           .join('')
       );
-  
+
       return JSON.parse(jsonPayload);
     } catch (e) {
       console.error('Błąd dekodowania tokenu:', e);
       return null;
     }
   };
-  
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -36,7 +37,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
         },
         body: JSON.stringify({ email, password }),
       });
-
+  
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem('token', data.token);
@@ -45,10 +46,26 @@ const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
         if (userId) {
           localStorage.setItem('userId', userId);
         }
-        const userRole = JSON.parse(atob(data.token.split('.')[1])).role; 
+  
+        const userRole = JSON.parse(atob(data.token.split('.')[1])).role;
         setIsAdmin(userRole === 'Admin');
         setLoginMessage('Zalogowano pomyślnie!');
         setIsLoggedIn(true);
+  
+        // Pobranie salda użytkownika
+        const balanceResponse = await fetch(`https://localhost:7175/api/Account/${userId}/balance`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${data.token}`,
+          },
+        });
+  
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+         
+          setBalance(balanceData.balance); // zakładamy, że odpowiedź zawiera pole 'balance'
+        }
+  
         navigate('/');
       } else {
         setLoginMessage('Nieprawidłowe dane logowania.');
@@ -57,10 +74,11 @@ const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
       setLoginMessage('Wystąpił błąd podczas logowania.');
     }
   };
+  
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem("userId");
+    localStorage.removeItem('userId');
     setIsLoggedIn(false);
     setIsAdmin(false);
     setLoginMessage('Wylogowano pomyślnie.');
@@ -71,13 +89,19 @@ const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
     <header style={styles.header}>
       <h1>Moje Auto</h1>
       {isLoggedIn ? (
-        <div>
+        <div style={styles.rightSection}>
+          <div style={styles.balanceInfo}>
+            <p>Saldo: {balance} PLN</p> {/* Wyświetla saldo użytkownika */}
+          </div>
           <Link to="/rentals" style={styles.link}>
             <button style={styles.button2}>Moje wypożyczenia</button>
           </Link>
+          <Link to="/TopUp" style={styles.link}>
+            <button style={styles.button2}>wpłać</button>
+          </Link>
           <Link to="/contact" style={styles.link}>
-          <button style={styles.button2}>Kontakt</button>
-        </Link>
+            <button style={styles.button2}>Kontakt</button>
+          </Link>
           <button onClick={handleLogout} style={styles.button2}>Wyloguj</button>
         </div>
       ) : (
@@ -105,11 +129,11 @@ const Header = ({ isLoggedIn, setIsLoggedIn, setIsAdmin }) => {
         </div>
       )}
       {location.pathname !== '/' && (
-            <Link to="/" style={styles.link}>
-              <button style={styles.button2}>Strona główna</button>
-            </Link>
-          )}
-  {loginMessage && (
+        <Link to="/" style={styles.link}>
+          <button style={styles.button2}>Strona główna</button>
+        </Link>
+      )}
+      {loginMessage && (
         <p style={loginMessage.includes('Nieprawidłowe') ? styles.errorMessage : styles.successMessage}>
           {loginMessage}
         </p>
@@ -126,6 +150,13 @@ const styles = {
     padding: '20px',
     backgroundColor: '#282c34',
     color: '#fff',
+  },
+  rightSection: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  balanceInfo: {
+    marginRight: '20px', // Styl dla sekcji wyświetlającej saldo
   },
   form: {
     display: 'flex',
@@ -144,26 +175,25 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
   },
- button2:{
-   padding: '8px 16px',
-    backgroundColor: '#007bff', 
+  button2: {
+    padding: '8px 16px',
+    backgroundColor: '#007bff',
     alignItems: 'center',
     color: '#fff',
- },
-
+  },
   link: {
     textDecoration: 'none',
     marginLeft: '10px',
   },
   successMessage: {
-    color: '#28a745', 
+    color: '#28a745',
     backgroundColor: '#d4edda',
     padding: '10px',
     borderRadius: '4px',
     margin: '10px 0',
   },
   errorMessage: {
-    color: '#ff0000', 
+    color: '#ff0000',
     backgroundColor: 'black',
     padding: '10px',
     borderRadius: '4px',
