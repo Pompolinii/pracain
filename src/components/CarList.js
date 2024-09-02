@@ -67,8 +67,6 @@ const CarList = ({ isAdmin, isLoggedIn, balance , setBalance }) => {
     
   }, [balance]);
 
-
-
   const handleFilterSubmit = (e) => {
     e.preventDefault();
     fetchCars();

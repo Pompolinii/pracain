@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+
+const errorMessages = {
+    email: 'Email',
+    password: 'Hasło',
+    UserName: 'Nazwa użytkownika',
+    FullName: 'Imię i nazwisko',
+    Address: 'Adres',
+    DateOfBirth: 'Data urodzenia',
+    DriverLicenseNumber: 'Prawo jazdy',
+    general: 'Błąd ogólny',
+};
+
 const RegisterPage = () => {
     const [user, setUser] = useState({
         email: '',
@@ -12,7 +24,7 @@ const RegisterPage = () => {
         DriverLicenseNumber: '',
     });
 
-    const [error, setError] = useState(null);
+    const [errors, setErrors] = useState({});
     const navigate = useNavigate();
 
     const handleInputChange = (e) => {
@@ -25,7 +37,7 @@ const RegisterPage = () => {
 
     const handleRegister = async (e) => {
         e.preventDefault();
-
+        setErrors({}); 
         try {
             const response = await fetch('https://localhost:7175/api/Account/register', {
                 method: 'POST',
@@ -36,13 +48,26 @@ const RegisterPage = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Błąd rejestracji, sprawdź dane i spróbuj ponownie.');
+                const errorData = await response.json(); 
+                if (errorData.errors) {
+                    
+                    const translatedErrors = Object.entries(errorData.errors).reduce((acc, [field, messages]) => {
+                        acc[errorMessages[field] || field] = messages;
+                        return acc;
+                    }, {});
+                    setErrors(translatedErrors);
+                } else {
+                    
+                    const errorMessage = await response.text();
+                    setErrors({ general: [errorMessage || 'Wystąpił błąd podczas rejestracji.'] });
+                }
+                return;
             }
-
-           
+            
             navigate('/');
         } catch (error) {
-            setError(error.message);
+            console.error('Błąd:', error);
+            setErrors({ general: ['Wystąpił błąd podczas rejestracji.'] });
         }
     };
 
@@ -66,11 +91,10 @@ const RegisterPage = () => {
                     onChange={handleInputChange}
                     style={styles.input}
                 />
-
                 <input
                     type="text"
                     name="UserName"
-                    placeholder="nazwa użytkownika"
+                    placeholder="Nazwa użytkownika"
                     value={user.UserName}
                     onChange={handleInputChange}
                     style={styles.input}
@@ -78,7 +102,7 @@ const RegisterPage = () => {
                 <input
                     type="text"
                     name="FullName"
-                    placeholder="Imię i Nazwisko"
+                    placeholder="Imię i nazwisko"
                     value={user.FullName}
                     onChange={handleInputChange}
                     style={styles.input}
@@ -92,24 +116,37 @@ const RegisterPage = () => {
                     style={styles.input}
                 />
                 <input
-                    type="data"
+                    type="date"
                     name="DateOfBirth"
-                    placeholder="Data Urodzenia"
+                    placeholder="Data urodzenia"
                     value={user.DateOfBirth}
                     onChange={handleInputChange}
                     style={styles.input}
                 />
                 <input
-                    type="number"
+                    type="text"
                     name="DriverLicenseNumber"
-                    placeholder="Prawo Jazdy"
+                    placeholder="Prawo jazdy"
                     value={user.DriverLicenseNumber}
                     onChange={handleInputChange}
                     style={styles.input}
                 />
                 <button type="submit" style={styles.button}>Zarejestruj się</button>
             </form>
-            {error && <p style={styles.error}>{error}</p>}
+            {Object.keys(errors).length > 0 && (
+                <div style={styles.errorContainer}>
+                    {Object.entries(errors).map(([field, messages]) => (
+                        <div key={field}>
+                            <strong>{field}:</strong>
+                            <ul>
+                                {messages.map((message, index) => (
+                                    <li key={index} style={styles.error}>{message}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -138,11 +175,13 @@ const styles = {
         borderRadius: '4px',
         cursor: 'pointer',
     },
-    error: {
-        color: 'green',
+    errorContainer: {
         marginTop: '10px',
     },
-
+    error: {
+        color: 'black',
+        margin: '5px 0',
+    },
 };
 
 export default RegisterPage;

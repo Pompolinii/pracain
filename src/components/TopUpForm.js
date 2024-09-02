@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { loadScript } from '@paypal/paypal-js';
 
-const TopUpForm = ({setBalance, balance}) => {
-  const [blikCode, setBlikCode] = useState('');
+const TopUpForm = ({ setBalance, balance }) => {
   const [amount, setAmount] = useState(0);
+  const [paypalButtonsLoaded, setPaypalButtonsLoaded] = useState(false);
+  const [saldo, setSaldo] = useState(balance);
+
+
 
   useEffect(() => {
     fetchBalance();
-    
-  }, [balance]);
+
+  }, [saldo]);
 
   const fetchBalance = async (userId, token) => {
     try {
@@ -21,7 +25,7 @@ const TopUpForm = ({setBalance, balance}) => {
       if (balanceResponse.ok) {
         const balanceData = await balanceResponse.json();
         console.log(balanceData);
-        setBalance(balanceData.balance); // Uaktualnienie stanu balance
+        setBalance(balanceData.balance); 
       } else {
         console.error('Błąd przy pobieraniu salda:', balanceResponse.statusText);
       }
@@ -30,85 +34,100 @@ const TopUpForm = ({setBalance, balance}) => {
     }
   };
 
-  const handleTopUp = async (e) => {
-    e.preventDefault(); // Zapobiega domyślnemu działaniu formularza
 
-    try {
-      const token = localStorage.getItem('token');
-      const userId = localStorage.getItem('userId'); // Pobieranie userId z localStorage
-  
-      if (!userId) {
-        throw new Error('Nie można znaleźć identyfikatora użytkownika');
+
+  useEffect(() => {
+    let isComponentMounted = true;
+    const initializePayPalButtons = async () => {
+      try {
+        const container = document.getElementById('paypal-button-container');
+        if (container && !paypalButtonsLoaded) {
+          container.innerHTML = '';
+
+          const paypal = await loadScript({
+            'client-id': 'AQoPgLY96X4tWiWhZZH8ckpCuV86C1MHOsEGfbzScwspGVJO4tr0nLO_uz9rPx1TwLc8xlyibkllPOgs',
+            currency: 'PLN',
+          });
+
+          if (!paypal) {
+            console.error('PayPal SDK failed to load.');
+            return;
+          }
+
+          if (isComponentMounted && paypal) {
+            paypal.Buttons({
+              createOrder: async (data, actions) => {
+                const response = await fetch('https://localhost:7175/api/Payments/create-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    amount: parseFloat(amount),  
+                  }),
+                });
+
+                if (!response.ok) {
+                  throw new Error('Network response was not ok');
+                }
+
+                const result = await response.json();
+                return result.orderId;
+              },
+              onApprove: async (data, actions) => {
+                const response = await fetch('https://localhost:7175/api/Payments/capture-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    orderId: data.orderID,
+                    amount: parseFloat(amount),  
+                    userId: localStorage.getItem('userId'),
+                  }),
+                });
+                if (!response.ok) {
+                  throw new Error('Network response was not ok');
+                }
+                const token = localStorage.getItem('token');
+                const userId = localStorage.getItem('userId');
+                 await fetchBalance(userId, token);
+              },
+            }).render('#paypal-button-container');
+
+            setPaypalButtonsLoaded(true);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load PayPal SDK:', error);
       }
-  
-      const response = await fetch('https://localhost:7175/api/Rentals/topup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ blikCode, amount, userId }), // Przekazywanie blikCode i userId w body
-      });
-  
-      if (!response.ok) throw new Error('Błąd doładowania');
-  
-      const data = await response.json();
-      alert(`Doładowanie powiodło się! Twoje nowe saldo to: ${data.newBalance} PLN`);
-      await fetchBalance(userId, token);
-    } catch (error) {
-      console.error('Błąd:', error);
-      alert('Wystąpił błąd podczas doładowania BLIK.');
-    }
-  };
+    };
+
+    initializePayPalButtons();
+
+    return () => {
+      isComponentMounted = false;
+    };
+  }, [amount, paypalButtonsLoaded]);  
 
   return (
-    <form onSubmit={handleTopUp} style={styles.form}>
-      <div>
-        <label>BLIK Code:</label>
-        <input
-          type="text"
-          value={blikCode}
-          onChange={(e) => setBlikCode(e.target.value)}
-          style={styles.input}
-          required
-        />
-      </div>
+    <div>
       <div>
         <label>Kwota:</label>
         <input
           type="number"
-          value={amount}
-          onChange={(e) => setAmount(parseFloat(e.target.value))}
-          style={styles.input}
-          required
+          min="1"
+          value={amount || ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            setAmount(value === '' ? 0 : parseFloat(value));
+            setPaypalButtonsLoaded(false);  
+          }}
         />
       </div>
-      <button type="submit" style={styles.button}>Doładuj</button>
-    </form>
+      <div id="paypal-button-container"></div>
+    </div>
   );
-};
-
-const styles = {
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    maxWidth: '300px',
-    margin: '0 auto',
-  },
-  input: {
-    padding: '8px',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-  },
-  button: {
-    padding: '8px 16px',
-    backgroundColor: '#007bff',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
 };
 
 export default TopUpForm;
